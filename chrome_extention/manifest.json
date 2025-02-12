@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Social Media Verifier",
+  "version": "1.0",
+  "description": "Verifies posts on social media via blockchain.",
+  "permissions": ["scripting", "storage", "activeTab"],
+  "host_permissions": [
+    "https://twitter.com/*",
+    "https://x.com/*",
+    "https://bsky.app/*",
+    "https://truthsocial.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://twitter.com/*",
+        "https://x.com/*",
+        "https://bsky.app/*",
+        "https://truthsocial.com/*"
+      ],
+      "js": ["content.js"],
+      "css": ["style.css"]
+    }
+  ],
+  "icons": {
+    "48": "icon.png",
+    "128": "icon.png"
+  }
+}
