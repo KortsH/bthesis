@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Social Media Verifier",
   "version": "1.0",
-  "description": "Verifies posts on social media via blockchain.",
+  "description": "Verifies posts on social media via backend verification.",
   "permissions": ["scripting", "storage", "activeTab"],
   "host_permissions": [
     "https://twitter.com/*",
