@@ -1,0 +1,110 @@
+Truth Social Post Data
+User Information
+Username: GrassrootsArmy
+Display Name: Garrett Soldano
+Created At: 2022-11-02
+Followers Count: 3,577
+Following Count: 14
+Statuses Count: 1,077
+Last Status Update: 2025-02-12
+Verified: False
+Bio: Ordinary people are doing extraordinary things
+Profile Media
+Avatar: Profile Image
+Header: Header Image
+Recent Posts
+
+Post 1
+ID: 109339287848279149
+Created At: 2022-11-14
+Visibility: Public
+Post Content:
+"Republicans Losing The Senate, Trump Being Trump, and the MIGOP Future"
+Link: Rumble Video
+Reactions: 🔁 4 | ❤️ 10
+
+Post 2
+ID: 109336325325307196
+Created At: 2022-11-13
+Visibility: Public
+Post Content:
+"Don't let your past DEFINE you."
+Hashtag: #GrassrootsArmy
+Media: Video
+Reactions: 🔁 5 | ❤️ 12
+
+Post 3
+ID: 109336232285386162
+Created At: 2022-11-13
+Visibility: Public
+Post Content:
+"Planes collide, burst into flames during an air show at Dallas Executive Airport. Prayers for all affected."
+Media: Video
+Reactions: 🔁 1 | ❤️ 2
+
+Post 4
+ID: 109319423331144293
+Created At: 2022-11-10
+Visibility: Public
+Post Content:
+"I'll never vote for politicians who believe in Black Lives Matter, except for when they are in the womb."
+Hashtag: #GrassrootsArmy
+Media: Video
+Reactions: 🔁 1 | ❤️ 7
+
+Post 5
+ID: 109308790131415104
+Created At: 2022-11-08
+Visibility: Public
+Post Content:
+"VOTE as if your business is closed, your children are locked out of school, family members are alone in hospitals, and you're not allowed to see them. VOTE!"
+Hashtag: #GrassrootsArmy
+Media: Image
+Reactions: 🔁 3 | ❤️ 13
+
+Post 6
+ID: 109304647380382638
+Created At: 2022-11-07
+Visibility: Public
+Post Content:
+"I'm not voting for politicians who support the idea that a biological man can use a girls' bathroom in a school."
+Hashtag: #GrassrootsArmy
+Media: Video
+Reactions: 🔁 3 | ❤️ 3
+
+Post 7
+ID: 109303570542766990
+Created At: 2022-11-07
+Visibility: Public
+Post Content:
+"I'm not voting for politicians who believe CRT, DEI, Sexual, and Gender Theory should be taught in our schools."
+Media: Video
+Reactions: 🔁 3 | ❤️ 6
+
+Post 8
+ID: 109301980784297013
+Created At: 2022-11-07
+Visibility: Public
+Post Content:
+"A man kicks a Church of the Resurrection School's anti-Proposal 3 'Fight Like Heaven' yard sign. Watch what happens."
+Media: Video
+Reactions: 🔁 2 | ❤️ 5
+
+Post 9
+ID: 109299061372714034
+Created At: 2022-11-06
+Visibility: Public
+Post Content:
+"I'm not voting for politicians who..."
+Media: Video
+Reactions: 🔁 3 | ❤️ 10
+
+Post 10
+ID: 109293355881477858
+Created At: 2022-11-05
+Visibility: Public
+Post Content:
+"God obviously doesn't approve of John Fetterman’s message 😂😂. Get your boat!"
+Media: Video
+Reactions: 🔁 16 | ❤️ 32
+This version structures the data so it's easy to read and digest, separating different aspects into sections with links and key details. You can now navigate through the posts more efficiently. 🚀

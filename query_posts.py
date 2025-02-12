@@ -31,6 +31,24 @@ except ImportError:
     exit(1)
 
 # ------------------------------
+# Helper Function: Parse NDJSON
+# ------------------------------
+def parse_ndjson(output: str) -> list:
+    """
+    Parse newline-delimited JSON (NDJSON) from a string.
+    Returns a list of JSON objects.
+    """
+    posts = []
+    for line in output.strip().splitlines():
+        if line.strip():  # skip empty lines
+            try:
+                obj = json.loads(line)
+                posts.append(obj)
+            except json.JSONDecodeError as e:
+                print("Error decoding line:", line, e)
+    return posts
+
+# ------------------------------
 # X (Twitter) Query Functions
 # ------------------------------
 def query_x_posts(username: str) -> dict:
@@ -108,15 +126,22 @@ def query_truthsocial_posts(handle: str) -> dict:
         if result.returncode != 0:
             print("Error querying Truth Social posts:", result.stderr)
             return {}
+        raw_output = result.stdout
         # Check if the output appears to be HTML (indicating a rate limit or access denied)
-        if result.stdout.lstrip().startswith("<!DOCTYPE html>"):
+        if raw_output.lstrip().startswith("<!DOCTYPE html>"):
             print("Received HTML response (likely rate-limited or access denied) from Truth Social.")
             return {}
-        posts = json.loads(result.stdout)
-        return posts
+        try:
+            parsed = json.loads(raw_output)
+        except json.JSONDecodeError:
+            parsed = parse_ndjson(raw_output)
+        # If parsed is a list, wrap it in a dictionary.
+        if isinstance(parsed, list):
+            return {"posts": parsed}
+        else:
+            return parsed
     except Exception as e:
         print("Error executing truthbrush command:", e)
-        print(result)
         return {}
 
 # ------------------------------
@@ -189,7 +214,7 @@ def main():
             if posts:
                 print("Posts from X:")
                 print(json.dumps(posts, indent=2))
-                save_posts_to_file("twitter", username, posts)
+            save_posts_to_file("twitter", username, posts)
         elif choice == "2":
             handle = input("Enter the Blue Sky handle (e.g., user.bsky.social): ").strip()
             print(f"\nQuerying Blue Sky posts for '{handle}'...")
@@ -197,15 +222,15 @@ def main():
             if posts:
                 print("Posts from Blue Sky:")
                 print(json.dumps(posts, indent=2))
-                save_posts_to_file("bluesky", handle, posts)
+            save_posts_to_file("bluesky", handle, posts)
         elif choice == "3":
             handle = input("Enter the Truth Social handle: ").strip()
             print(f"\nQuerying Truth Social posts for '{handle}'...")
             posts = query_truthsocial_posts(handle)
-            if posts:
-                print("Posts from Truth Social:")
-                print(json.dumps(posts, indent=2))
-                save_posts_to_file("truthsocial", handle, posts)
+            # Always save the response (even if empty) when there is no error.
+            print("Posts from Truth Social:")
+            print(json.dumps(posts, indent=2))
+            save_posts_to_file("truthsocial", handle, posts)
         elif choice == "4":
             page_id = input("Enter the Facebook page ID (or username): ").strip()
             print(f"\nQuerying Facebook posts for '{page_id}'...")
@@ -213,7 +238,7 @@ def main():
             if posts:
                 print("Posts from Facebook:")
                 print(json.dumps(posts, indent=2))
-                save_posts_to_file("facebook", page_id, posts)
+            save_posts_to_file("facebook", page_id, posts)
         elif choice == "5":
             username = input("Enter the Threads username: ").strip()
             print(f"\nQuerying Threads posts for '{username}'...")
@@ -221,7 +246,7 @@ def main():
             if posts:
                 print("Posts from Threads:")
                 print(json.dumps(posts, indent=2))
-                save_posts_to_file("threads", username, posts)
+            save_posts_to_file("threads", username, posts)
         elif choice == "6":
             print("Exiting...")
             break
