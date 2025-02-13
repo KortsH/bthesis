@@ -1,9 +1,5 @@
-{ 
-  "twitter": {
-    "elon_musk": "elonmusk",
-    "kamala_harris": "KamalaHarris",
-    "ilves_toomas": "IlvesToomas"
-  },
+{
+  "twitter": ["IlvesToomas", "KamalaHarris", "elonmusk"],
   "blue_sky": {
     "hank_green": "hankgreen.bsky.social"
   },

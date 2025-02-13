@@ -40,7 +40,6 @@ if (fs.existsSync(postsFolder)) {
       }
       if (postData.data && Array.isArray(postData.data)) {
         postData.data.forEach((tweet) => {
-          // Check if this tweet is already in the blockchain.
           let exists = blockchain.chain.some(
             (block) =>
               block.data &&
@@ -89,8 +88,44 @@ app.post("/query", (req, res) => {
   res.json({ success: true, block });
 });
 
-// Endpoint for verification (used by the Chrome extension).
-// The extension sends { tweetId, content, poster, tweetUrl } and the server checks the blockchain.
+function cleanContent(content) {
+  return content
+    .split("\n")
+    .filter((line) => !/^\s*\d+\s*$/.test(line))
+    .join("\n");
+}
+
+function extractQuote(content) {
+  const cleaned = cleanContent(content);
+  console.log("Cleaned content:", cleaned);
+  // Split the cleaned content into lines.
+  const lines = cleaned
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  // Look for a candidate line that contains 'said:' and a double quote.
+  const candidateLine = lines.find(
+    (line) => line.toLowerCase().includes("said:") && line.includes('"')
+  );
+  if (candidateLine) {
+    // Pattern 1: "Name said: "quote text""
+    let pattern1 = /^([\w]+)\s+said:\s*"(.+)"$/i;
+    let match = candidateLine.match(pattern1);
+    if (match && match.length === 3) {
+      console.log("Pattern1 matched on line:", candidateLine);
+      return { quotedPoster: match[1].trim(), quotedText: match[2].trim() };
+    }
+    // Pattern 2: "Name: "quote text""
+    let pattern2 = /^([\w]+):\s*"(.+)"$/i;
+    match = candidateLine.match(pattern2);
+    if (match && match.length === 3) {
+      console.log("Pattern2 matched on line:", candidateLine);
+      return { quotedPoster: match[1].trim(), quotedText: match[2].trim() };
+    }
+  }
+  return null;
+}
+
 app.post("/verify", (req, res) => {
   const { tweetId, content, poster, tweetUrl } = req.body;
   console.log("Received verification request:", {
@@ -102,17 +137,55 @@ app.post("/verify", (req, res) => {
   let verified = false;
   let storedTweetUrl = null;
 
-  // console.log("Current blockchain (data fields):");
-  // blockchain.chain.forEach((block) => console.log(block.data));
+  const quoteInfo = extractQuote(content);
+  if (quoteInfo) {
+    console.log("Extracted quote info:", quoteInfo);
 
-  // Simple verification: check if any block contains the same tweetId.
-  for (let block of blockchain.chain) {
-    if (block.data && block.data.post_id === tweetId) {
-      verified = true;
-      storedTweetUrl = block.data.tweetUrl || tweetUrl;
-      break;
+    if (
+      trackedPeople.twitter &&
+      Array.isArray(trackedPeople.twitter) &&
+      trackedPeople.twitter
+        .map((u) => u.toLowerCase())
+        .includes(quoteInfo.quotedPoster.toLowerCase())
+    ) {
+      console.log(
+        "Quoted poster found in tracked people:",
+        quoteInfo.quotedPoster
+      );
+
+      for (let block of blockchain.chain) {
+        if (
+          block.data &&
+          block.data.platform === "twitter" &&
+          block.data.poster &&
+          block.data.poster.toLowerCase() ===
+            quoteInfo.quotedPoster.toLowerCase()
+        ) {
+          const originalContent = block.data.content.toLowerCase();
+          const quotedText = quoteInfo.quotedText.toLowerCase();
+
+          if (
+            originalContent.includes(quotedText) ||
+            quotedText.includes(originalContent)
+          ) {
+            verified = true;
+            storedTweetUrl = block.data.tweetUrl || tweetUrl;
+            console.log("Quote verified with original tweet:", block.data);
+            break;
+          }
+        }
+      }
+    } else {
+      console.log(
+        "Quoted poster",
+        quoteInfo.quotedPoster,
+        "not found in tracked people."
+      );
     }
+  } else {
+    console.log("No quote pattern detected in content.");
   }
+
   console.log("Sending verification response for tweetId", tweetId, ":", {
     verified,
     tweetUrl: storedTweetUrl,
