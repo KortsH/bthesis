@@ -17,11 +17,19 @@
   const platform = detectPlatform();
   console.log("Social Media Verifier: Detected platform: " + platform);
 
-  function addVerificationBadge(postElement, text) {
+  function addVerificationBadge(postElement, text, tweetUrl) {
     if (postElement.querySelector(".custom-verification")) return;
     const badge = document.createElement("span");
     badge.innerText = text;
     badge.className = "custom-verification";
+    if (tweetUrl) {
+      const link = document.createElement("a");
+      link.href = tweetUrl;
+      link.target = "_blank";
+      link.innerText = " [View]";
+      link.style.marginLeft = "5px";
+      badge.appendChild(link);
+    }
     postElement.appendChild(badge);
   }
 
@@ -61,7 +69,8 @@
       .then((data) => {
         console.log("Backend response for tweet ID " + tweetId + ":", data);
         if (data.verified) {
-          addVerificationBadge(articleElement, "✅ Verified");
+          const verifiedUrl = data.tweetUrl || tweetUrl;
+          addVerificationBadge(articleElement, "✅ Verified", verifiedUrl);
           console.log(
             "Social Media Verifier: Found verified tweet with ID " + tweetId
           );

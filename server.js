@@ -40,6 +40,7 @@ if (fs.existsSync(postsFolder)) {
       }
       if (postData.data && Array.isArray(postData.data)) {
         postData.data.forEach((tweet) => {
+          // Check if this tweet is already in the blockchain.
           let exists = blockchain.chain.some(
             (block) =>
               block.data &&
@@ -54,6 +55,9 @@ if (fs.existsSync(postsFolder)) {
               post_id: tweet.id,
               content: tweet.text,
               post_time: new Date().toISOString(),
+              tweetUrl:
+                tweet.url ||
+                `https://twitter.com/${posterFromFile}/status/${tweet.id}`,
             };
             const newBlock = blockchain.addBlock(newData);
             console.log("Added new block from file:", newBlock);
@@ -77,6 +81,7 @@ app.post("/query", (req, res) => {
     post_id: "dummy_" + Date.now(),
     content: `This is a dummy post from ${username} on ${platform}.`,
     post_time: new Date().toISOString(),
+    tweetUrl: "",
   };
 
   const block = blockchain.addBlock(dummyPost);
@@ -85,29 +90,34 @@ app.post("/query", (req, res) => {
 });
 
 // Endpoint for verification (used by the Chrome extension).
-// The extension sends { tweetId, content, poster } and the server checks the blockchain.
+// The extension sends { tweetId, content, poster, tweetUrl } and the server checks the blockchain.
 app.post("/verify", (req, res) => {
-  const { tweetId, content, poster } = req.body;
-  console.log("Received verification request:", { tweetId, content, poster });
+  const { tweetId, content, poster, tweetUrl } = req.body;
+  console.log("Received verification request:", {
+    tweetId,
+    content,
+    poster,
+    tweetUrl,
+  });
   let verified = false;
+  let storedTweetUrl = null;
 
-  // For debugging, you can log the entire blockchain here if needed.
-  // console.log("Current blockchain:", blockchain.chain.map(b => b.data));
+  // console.log("Current blockchain (data fields):");
+  // blockchain.chain.forEach((block) => console.log(block.data));
 
-  // Verify by checking that the block contains the same tweetId
+  // Simple verification: check if any block contains the same tweetId.
   for (let block of blockchain.chain) {
-    if (
-      block.data &&
-      block.data.post_id === tweetId 
-    ) {
+    if (block.data && block.data.post_id === tweetId) {
       verified = true;
+      storedTweetUrl = block.data.tweetUrl || tweetUrl;
       break;
     }
   }
   console.log("Sending verification response for tweetId", tweetId, ":", {
     verified,
+    tweetUrl: storedTweetUrl,
   });
-  res.json({ verified });
+  res.json({ verified, tweetUrl: storedTweetUrl });
 });
 
 // Endpoint to retrieve the tracked people.

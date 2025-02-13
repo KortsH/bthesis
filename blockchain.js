@@ -6,7 +6,7 @@ class Block {
   constructor(index, timestamp, data, previousHash = "", nonce = 0) {
     this.index = index;
     this.timestamp = timestamp;
-    this.data = data; // Expected keys: platform, poster, post_id, content, post_time.
+    this.data = data; // Expected keys: platform, poster, post_id, content, post_time, tweetUrl
     this.previousHash = previousHash;
     this.nonce = nonce;
     this.hash = this.computeHash();
@@ -79,7 +79,6 @@ class Blockchain {
   }
 
   addBlock(newData) {
-    // newData is expected to have keys: platform, poster, post_id, content, post_time.
     const previousBlock = this.getLatestBlock();
     const newBlock = new Block(
       previousBlock.index + 1,
