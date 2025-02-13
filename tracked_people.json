@@ -1,0 +1,13 @@
+{ 
+  "twitter": {
+    "elon_musk": "elonmusk",
+    "kamala_harris": "KamalaHarris",
+    "ilves_toomas": "IlvesToomas"
+  },
+  "blue_sky": {
+    "hank_green": "hankgreen.bsky.social"
+  },
+  "truth_social": {
+    "GrassrootsArmy": "GrassrootsArmy"
+  }
+}

@@ -10,10 +10,9 @@ This script queries posts from:
   5. Threads – (placeholder; no official API yet)
   6. Exit
 
-The queried posts are saved in a JSON file in the same directory.
+The queried posts are saved as JSON files in platform‐specific subdirectories under a “posts” folder.
 """
 
-# Load environment variables as early as possible.
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -31,16 +30,26 @@ except ImportError:
     exit(1)
 
 # ------------------------------
+# Setup directory structure for saving posts.
+# ------------------------------
+BASE_POSTS_DIR = os.path.join(os.getcwd(), "posts")
+PLATFORM_FOLDERS = {
+    "twitter": os.path.join(BASE_POSTS_DIR, "twitter"),
+    "blue_sky": os.path.join(BASE_POSTS_DIR, "blue_sky"),
+    "truth_social": os.path.join(BASE_POSTS_DIR, "truth_social"),
+    "facebook": os.path.join(BASE_POSTS_DIR, "facebook"),
+    "threads": os.path.join(BASE_POSTS_DIR, "threads"),
+}
+for folder in PLATFORM_FOLDERS.values():
+    os.makedirs(folder, exist_ok=True)
+
+# ------------------------------
 # Helper Function: Parse NDJSON
 # ------------------------------
 def parse_ndjson(output: str) -> list:
-    """
-    Parse newline-delimited JSON (NDJSON) from a string.
-    Returns a list of JSON objects.
-    """
     posts = []
     for line in output.strip().splitlines():
-        if line.strip():  # skip empty lines
+        if line.strip():
             try:
                 obj = json.loads(line)
                 posts.append(obj)
@@ -52,17 +61,12 @@ def parse_ndjson(output: str) -> list:
 # X (Twitter) Query Functions
 # ------------------------------
 def query_x_posts(username: str) -> dict:
-    """
-    Query recent tweets from the given username on X (Twitter).
-    Uses Twitter API v2 endpoints.
-    """
     bearer_token = os.getenv("TWITTER_AUTH_BEARER_TOKEN")
     if not bearer_token:
         print("Error: TWITTER_AUTH_BEARER_TOKEN environment variable not set.")
         return {}
     headers = {"Authorization": f"Bearer {bearer_token}"}
 
-    # Resolve the username to a user ID.
     url_user = f"https://api.twitter.com/2/users/by/username/{username}"
     user_resp = requests.get(url_user, headers=headers)
     if user_resp.status_code != 200:
@@ -74,7 +78,6 @@ def query_x_posts(username: str) -> dict:
         print("User ID not found.")
         return {}
 
-    # Retrieve the user's tweets.
     url_tweets = f"https://api.twitter.com/2/users/{user_id}/tweets"
     tweets_resp = requests.get(url_tweets, headers=headers)
     if tweets_resp.status_code != 200:
@@ -91,14 +94,15 @@ def query_bluesky_posts(handle: str) -> dict:
     Resolves the handle to a DID and then lists recent posts.
     """
     try:
-        client = atproto.Client()  # Public read endpoints do not require login.
-        # Try to use resolve_handle (with underscore) if available; otherwise, fallback.
-        if hasattr(client.com.atproto.identity, "resolve_handle"):
-            actor = client.com.atproto.identity.resolve_handle({"handle": handle})
-        else:
+        client = atproto.Client()  # No login required for public read endpoints.
+        actor = None
+        try:
             actor = client.com.atproto.identity.resolveHandle({"handle": handle})
+        except Exception as e:
+            print("resolveHandle failed, trying resolve_handle:", e)
+            actor = client.com.atproto.identity.resolve_handle({"handle": handle})
         if not actor or "did" not in actor:
-            print("Unable to resolve Blue Sky handle.")
+            print("Unable to resolve Blue Sky handle for:", handle)
             return {}
         did = actor["did"]
         records = client.com.atproto.repo.listRecords({
@@ -117,8 +121,7 @@ def query_bluesky_posts(handle: str) -> dict:
 def query_truthsocial_posts(handle: str) -> dict:
     """
     Query posts from Truth Social for the given handle.
-    This function calls the Truthbrush CLI and parses its output.
-    Note: Truthbrush must be installed and configured.
+    Calls the Truthbrush CLI and parses its output.
     """
     try:
         result = subprocess.run(["truthbrush", "statuses", handle],
@@ -127,7 +130,6 @@ def query_truthsocial_posts(handle: str) -> dict:
             print("Error querying Truth Social posts:", result.stderr)
             return {}
         raw_output = result.stdout
-        # Check if the output appears to be HTML (indicating a rate limit or access denied)
         if raw_output.lstrip().startswith("<!DOCTYPE html>"):
             print("Received HTML response (likely rate-limited or access denied) from Truth Social.")
             return {}
@@ -135,7 +137,6 @@ def query_truthsocial_posts(handle: str) -> dict:
             parsed = json.loads(raw_output)
         except json.JSONDecodeError:
             parsed = parse_ndjson(raw_output)
-        # If parsed is a list, wrap it in a dictionary.
         if isinstance(parsed, list):
             return {"posts": parsed}
         else:
@@ -148,10 +149,6 @@ def query_truthsocial_posts(handle: str) -> dict:
 # Facebook Query Functions
 # ------------------------------
 def query_facebook_posts(page_id: str) -> dict:
-    """
-    Query posts from a Facebook page using the Graph API.
-    Requires FACEBOOK_ACCESS_TOKEN in the environment.
-    """
     fb_token = os.getenv("FACEBOOK_ACCESS_TOKEN")
     if not fb_token:
         print("Error: FACEBOOK_ACCESS_TOKEN environment variable not set.")
@@ -167,23 +164,16 @@ def query_facebook_posts(page_id: str) -> dict:
 # Threads Query Functions (Placeholder)
 # ------------------------------
 def query_threads_posts(username: str) -> dict:
-    """
-    Query posts from Threads for the given username.
-    NOTE: There is currently no official Threads API.
-    """
     print("Threads API is not yet implemented.")
     return {}
 
 # ------------------------------
-# Helper Function: Save Posts to File
+# Helper: Save Posts to File (in platform-specific folder)
 # ------------------------------
 def save_posts_to_file(platform: str, handle: str, posts: dict):
-    """
-    Save the queried posts to a JSON file.
-    The filename is generated as: {platform}_{handle}_{timestamp}.json
-    """
     timestamp = time.strftime("%Y%m%d-%H%M%S")
-    filename = f"{platform.lower()}_{handle}_{timestamp}.json"
+    folder = PLATFORM_FOLDERS.get(platform.lower(), BASE_POSTS_DIR)
+    filename = os.path.join(folder, f"{handle}_{timestamp}.json")
     try:
         with open(filename, "w") as outfile:
             json.dump(posts, outfile, indent=2)
@@ -222,15 +212,14 @@ def main():
             if posts:
                 print("Posts from Blue Sky:")
                 print(json.dumps(posts, indent=2))
-            save_posts_to_file("bluesky", handle, posts)
+            save_posts_to_file("blue_sky", handle, posts)
         elif choice == "3":
             handle = input("Enter the Truth Social handle: ").strip()
             print(f"\nQuerying Truth Social posts for '{handle}'...")
             posts = query_truthsocial_posts(handle)
-            # Always save the response (even if empty) when there is no error.
             print("Posts from Truth Social:")
             print(json.dumps(posts, indent=2))
-            save_posts_to_file("truthsocial", handle, posts)
+            save_posts_to_file("truth_social", handle, posts)
         elif choice == "4":
             page_id = input("Enter the Facebook page ID (or username): ").strip()
             print(f"\nQuerying Facebook posts for '{page_id}'...")

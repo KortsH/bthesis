@@ -16,7 +16,6 @@
 
   const platform = detectPlatform();
   console.log("Social Media Verifier: Detected platform: " + platform);
-  alert("Social Media Verifier: You are on " + platform + "!");
 
   function addVerificationBadge(postElement, text) {
     if (postElement.querySelector(".custom-verification")) return;
@@ -63,7 +62,7 @@
         console.log("Backend response for tweet ID " + tweetId + ":", data);
         if (data.verified) {
           addVerificationBadge(articleElement, "✅ Verified");
-          alert(
+          console.log(
             "Social Media Verifier: Found verified tweet with ID " + tweetId
           );
         }
