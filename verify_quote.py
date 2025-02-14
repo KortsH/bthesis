@@ -23,43 +23,21 @@ def clean_text(text):
     return cleaned.strip()
 
 def extract_quote_info(content):
-    content = clean_text(content)
-    lines = [line.strip() for line in content.split("\n") if line.strip()]
-    # Pattern 1: e.g. "Name: "quote text"" or "Name said: "quote text""
-    pattern1 = re.compile(r'^([\w\s]+?)(?::| said(?: that)?[:]?)\s*"(.+)"$', re.IGNORECASE)
-    for line in lines:
-        match = pattern1.match(line)
-        if match and len(match.groups()) == 2:
-            return {
-                "quotedPoster": match.group(1).strip(),
-                "quotedText": match.group(2).strip()
-            }
+    content_clean = clean_text(content)
+    tracked_twitter = tracked_people.get("twitter", {})
 
-    pattern2 = re.compile(r'^(.+)[-–]\s*([\w\s]+)$')
-    for line in lines:
-        match = pattern2.match(line)
-        if match and len(match.groups()) == 2:
-            return {
-                "quotedPoster": match.group(2).strip(),
-                "quotedText": match.group(1).strip()
-            }
-    return None
-
-def identify_tracked_twitter(quotedPoster, tracked_twitter):
-    quoted_lower = quotedPoster.lower()
     for canonical, aliases in tracked_twitter.items():
         for alias in aliases:
-            if alias.lower() in quoted_lower:
-                return canonical
+            if alias.lower() in content_clean.lower():
+                pattern = re.compile(re.escape(alias), re.IGNORECASE)
+                quoted_text = pattern.sub("", content_clean, count=1).strip()
+                quoted_text = re.sub(r'^(?:said\s+(?:that\s+)?[:]?[\s]*)', "", quoted_text, flags=re.IGNORECASE)
+                return {"quotedPoster": canonical, "quotedText": quoted_text}
     return None
-
-
 
 def verify_quote(input_data):
     tweetId = input_data.get("tweetId")
     content = input_data.get("content", "")
-    # poster = input_data.get("poster")
-    # tweetUrl = input_data.get("tweetUrl")
     
     result = {
         "tweetId": tweetId,
@@ -69,36 +47,48 @@ def verify_quote(input_data):
     
     quote_info = extract_quote_info(content)
     if not quote_info:
-        result["error"] = "No quote pattern detected in content."
+        result["error"] = "No tracked quote found in content."
         return result
-    
-    tracked_twitter = tracked_people.get("twitter", {})
-    identified_poster = identify_tracked_twitter(quote_info["quotedPoster"], tracked_twitter)
+
+    result["extractedQuoteInfo"] = quote_info
+    identified_poster = quote_info.get("quotedPoster")
     if not identified_poster:
-        result["error"] = f"Quoted poster '{quote_info['quotedPoster']}' not found in tracked people."
+        result["error"] = "Could not identify quoted poster."
         return result
     result["identifiedPoster"] = identified_poster
-    
-    matches = []
+
+    candidates = []
     for block in blockchain:
         data = block.get("data", {})
         if (data.get("platform", "").lower() == "twitter" and 
             data.get("poster", "").lower() == identified_poster.lower()):
-            original_text = data.get("content", "")
-            emb_orig = model.encode(original_text, convert_to_tensor=True)
-            emb_quote = model.encode(quote_info["quotedText"], convert_to_tensor=True)
-            similarity = util.pytorch_cos_sim(emb_orig, emb_quote).item()
-            if similarity >= 0.70: 
-                matches.append({
-                    "tweetId": data.get("post_id"),
-                    "similarity": similarity,
-                    "tweetUrl": data.get("tweetUrl"),
-                    "content": data.get("content")
-                })
+            candidates.append(data)
+    if not candidates:
+        result["error"] = f"No original tweets found for poster {identified_poster} in blockchain."
+        return result
+
+    original_texts = [cand.get("content", "") for cand in candidates]
+    candidate_embeddings = model.encode(original_texts, convert_to_tensor=True)
+    
+    quote_embedding = model.encode(quote_info["quotedText"], convert_to_tensor=True)
+    
+    cosine_scores = util.cos_sim(candidate_embeddings, quote_embedding).squeeze(1)
+    cosine_scores = cosine_scores.cpu().tolist()  # Convert to list of floats.
+    
+    SIM_THRESHOLD = 0.70  # Only consider matches with similarity >= 0.70.
+    matches = []
+    for idx, score in enumerate(cosine_scores):
+        if score >= SIM_THRESHOLD:
+            matches.append({
+                "tweetId": candidates[idx].get("post_id"),
+                "similarity": score,
+                "tweetUrl": candidates[idx].get("tweetUrl"),
+                "content": candidates[idx].get("content")
+            })
+    
     if matches:
         matches.sort(key=lambda x: x["similarity"], reverse=True)
         result["matches"] = matches
-
         if matches[0]["similarity"] >= 0.75:
             result["verified"] = True
     return result
