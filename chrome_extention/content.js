@@ -17,18 +17,25 @@
   const platform = detectPlatform();
   console.log("Social Media Verifier: Detected platform: " + platform);
 
-  function addVerificationBadge(postElement, text, tweetUrl) {
+  function addVerificationBadge(postElement, text, linksInfo) {
     if (postElement.querySelector(".custom-verification")) return;
     const badge = document.createElement("span");
     badge.innerText = text;
     badge.className = "custom-verification";
-    if (tweetUrl) {
-      const link = document.createElement("a");
-      link.href = tweetUrl;
-      link.target = "_blank";
-      link.innerText = " [View]";
-      link.style.marginLeft = "5px";
-      badge.appendChild(link);
+    if (linksInfo && Array.isArray(linksInfo) && linksInfo.length > 0) {
+      const list = document.createElement("ul");
+      linksInfo.forEach((item) => {
+        const li = document.createElement("li");
+        const a = document.createElement("a");
+        a.href = item.tweetUrl;
+        a.target = "_blank";
+        a.innerText = `${item.tweetId} (${(item.similarity * 100).toFixed(
+          1
+        )}%)`;
+        li.appendChild(a);
+        list.appendChild(li);
+      });
+      badge.appendChild(list);
     }
     postElement.appendChild(badge);
   }
@@ -36,7 +43,6 @@
   function extractTweetId(articleElement) {
     const link = articleElement.querySelector('a[href*="/status/"]');
     if (link && link.href) {
-      // Example href: "https://twitter.com/username/status/1887211663809782107"
       const regex = /\/status\/(\d+)/;
       const match = link.href.match(regex);
       if (match && match[1]) {
@@ -47,20 +53,16 @@
   }
 
   function processTweet(articleElement) {
-    // Check if this element was already processed.
     if (articleElement.getAttribute("data-verified-checked") === "true") return;
-
     const tweetId = extractTweetId(articleElement);
     if (!tweetId) return;
     console.log("Found tweet ID:", tweetId);
-
     const tweetContent = articleElement.innerText;
     console.log("Sending request for tweet ID:", tweetId);
-
     fetch("http://localhost:3000/verify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tweetId: tweetId, content: tweetContent }),
+      body: JSON.stringify({ tweetId, content: tweetContent }),
     })
       .then((response) => {
         console.log("Received response for tweet ID:", tweetId);
@@ -68,11 +70,10 @@
       })
       .then((data) => {
         console.log("Backend response for tweet ID " + tweetId + ":", data);
-        if (data.verified) {
-          const verifiedUrl = data.tweetUrl || tweetUrl;
-          addVerificationBadge(articleElement, "✅ Verified", verifiedUrl);
+        if (data.verified && data.matches && data.matches.length > 0) {
+          addVerificationBadge(articleElement, "✅ Verified", data.matches);
           console.log(
-            "Social Media Verifier: Found verified tweet with ID " + tweetId
+            "Social Media Verifier: Quote verified for tweet ID " + tweetId
           );
         }
         articleElement.setAttribute("data-verified-checked", "true");
@@ -90,7 +91,6 @@
 
   if (platform === "Twitter") {
     processAllTweets();
-
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         mutation.addedNodes.forEach((node) => {
@@ -107,5 +107,4 @@
     });
     observer.observe(document.body, { childList: true, subtree: true });
   }
-
 })();
