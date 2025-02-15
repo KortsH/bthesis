@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import sys
 import json
 import os
@@ -18,6 +19,7 @@ tracked_people = load_json(TRACKED_PEOPLE_PATH)
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
 def clean_text(text):
+    text = text.replace("✅ Verified", "")
     lines = text.split("\n")
     cleaned = "\n".join(line for line in lines if not re.fullmatch(r'\s*\d+\s*', line))
     return cleaned.strip()
@@ -37,7 +39,7 @@ def extract_quote_info(content):
 
 def verify_quote(input_data):
     tweetId = input_data.get("tweetId")
-    content = input_data.get("content", "")
+    content = input_data.get("content") or input_data.get("highlightedText", "")
     
     result = {
         "tweetId": tweetId,

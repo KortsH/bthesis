@@ -96,13 +96,10 @@ app.post("/verify", (req, res) => {
       // console.log("Verification result from Python:", result);
       res.json(result);
     } catch (parseErr) {
-      // console.error("Error parsing Python output:", parseErr);
-      res
-        .status(500)
-        .json({
-          verified: false,
-          error: "Invalid response from verification script",
-        });
+      res.status(500).json({
+        verified: false,
+        error: "Invalid response from verification script",
+      });
     }
   });
 });
@@ -116,7 +113,27 @@ app.get("/tracked_people", (req, res) => {
 app.post("/verifyHighlighted", (req, res) => {
   const { highlightedText } = req.body;
   console.log("Received highlighted text:", highlightedText);
-  res.json({ status: "received", text: highlightedText });
+  const input = { highlightedText };
+  const inputStr = JSON.stringify(input);
+
+  exec(`python3 verify_quote.py '${inputStr}'`, (error, stdout, stderr) => {
+    if (error) {
+      res.status(500).json({ verified: false, error: error.message });
+      return;
+    }
+    if (stderr) {
+      console.error(`Python stderr: ${stderr}`);
+    }
+    try {
+      const result = JSON.parse(stdout);
+      res.json(result);
+    } catch (parseErr) {
+      res.status(500).json({
+        verified: false,
+        error: "Invalid response from verification script",
+      });
+    }
+  });
 });
 
 app.listen(port, () => {

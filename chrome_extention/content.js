@@ -108,13 +108,15 @@
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
-
   document.addEventListener(
     "keydown",
     function (e) {
       console.log("Keydown event:", e);
-      if (e.key === 'H' && e.keyCode === 72 && e.altKey) {
-        const highlightedText = window.getSelection().toString().trim();
+      if (e.key === "H" && e.altKey) {
+        const rawHighlightedText = window.getSelection().toString().trim();
+        const highlightedText = rawHighlightedText
+          .replace(/✅\s*Verified[\s\S]*/g, "")
+          .trim();
         console.log("Detected keybind. Highlighted text:", highlightedText);
         if (highlightedText) {
           fetch("http://localhost:3000/verifyHighlighted", {
@@ -125,15 +127,18 @@
             .then((response) => response.json())
             .then((data) => {
               console.log("Server response for highlighted text:", data);
+              alert("Verification result:\n" + JSON.stringify(data, null, 2));
             })
             .catch((err) => {
               console.error("Error sending highlighted text:", err);
+              alert("Error sending highlighted text: " + err);
             });
         } else {
           console.log("No text highlighted.");
+          alert("No text highlighted.");
         }
       }
     },
     true
-  ); 
+  );
 })();
