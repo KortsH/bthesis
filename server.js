@@ -18,7 +18,7 @@ let trackedPeople = {};
 if (fs.existsSync(trackedPeoplePath)) {
   trackedPeople = JSON.parse(fs.readFileSync(trackedPeoplePath));
 } else {
-  console.warn("tracked_people.json not found. Using empty trackedPeople.");
+  // console.warn("tracked_people.json not found. Using empty trackedPeople.");
 }
 
 // Initialize blockchain with persistence to blockchain.json.
@@ -60,43 +60,43 @@ if (fs.existsSync(postsFolder)) {
                 `https://twitter.com/${posterFromFile}/status/${tweet.id}`,
             };
             const newBlock = blockchain.addBlock(newData);
-            console.log("Added new block from file:", newBlock);
+            // console.log("Added new block from file:", newBlock);
           }
         });
       }
     } catch (err) {
-      console.error("Error processing file", filePath, ":", err);
+      // console.error("Error processing file", filePath, ":", err);
     }
   });
 }
 
 app.post("/verify", (req, res) => {
   const { tweetId, content, poster, tweetUrl } = req.body;
-  console.log("Received verification request:", {
-    tweetId,
-    content,
-    poster,
-    tweetUrl,
-  });
+  // console.log("Received verification request:", {
+  //   tweetId,
+  //   content,
+  //   poster,
+  //   tweetUrl,
+  // });
 
   const input = { tweetId, content, poster, tweetUrl };
   const inputStr = JSON.stringify(input);
 
   exec(`python3 verify_quote.py '${inputStr}'`, (error, stdout, stderr) => {
     if (error) {
-      console.error(`Error executing python script: ${error}`);
+      // console.error(`Error executing python script: ${error}`);
       res.status(500).json({ verified: false, error: error.message });
       return;
     }
     if (stderr) {
-      console.error(`Python stderr: ${stderr}`);
+      // console.error(`Python stderr: ${stderr}`);
     }
     try {
       const result = JSON.parse(stdout);
-      console.log("Verification result from Python:", result);
+      // console.log("Verification result from Python:", result);
       res.json(result);
     } catch (parseErr) {
-      console.error("Error parsing Python output:", parseErr);
+      // console.error("Error parsing Python output:", parseErr);
       res
         .status(500)
         .json({
@@ -110,6 +110,13 @@ app.post("/verify", (req, res) => {
 // Endpoint to retrieve the tracked people.
 app.get("/tracked_people", (req, res) => {
   res.json(trackedPeople);
+});
+
+// Endpoint to check the highlighted text
+app.post("/verifyHighlighted", (req, res) => {
+  const { highlightedText } = req.body;
+  console.log("Received highlighted text:", highlightedText);
+  res.json({ status: "received", text: highlightedText });
 });
 
 app.listen(port, () => {

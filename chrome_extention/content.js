@@ -107,4 +107,33 @@
     });
     observer.observe(document.body, { childList: true, subtree: true });
   }
+
+
+  document.addEventListener(
+    "keydown",
+    function (e) {
+      console.log("Keydown event:", e);
+      if (e.key === 'H' && e.keyCode === 72 && e.altKey) {
+        const highlightedText = window.getSelection().toString().trim();
+        console.log("Detected keybind. Highlighted text:", highlightedText);
+        if (highlightedText) {
+          fetch("http://localhost:3000/verifyHighlighted", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ highlightedText }),
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              console.log("Server response for highlighted text:", data);
+            })
+            .catch((err) => {
+              console.error("Error sending highlighted text:", err);
+            });
+        } else {
+          console.log("No text highlighted.");
+        }
+      }
+    },
+    true
+  ); 
 })();
