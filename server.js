@@ -7,7 +7,7 @@ const { Blockchain } = require("./blockchain");
 const { exec } = require("child_process");
 
 const app = express();
-const port = 3000;
+const port = 3001;
 
 app.use(cors());
 app.use(express.json());
@@ -135,6 +135,12 @@ app.post("/verifyHighlighted", (req, res) => {
     }
   });
 });
+
+// Endpoint to view the blockchain
+app.get("/chain", (req, res) => {
+  res.json(blockchain);
+});
+
 
 app.listen(port, () => {
   console.log(`Server listening at http://localhost:${port}`);
