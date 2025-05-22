@@ -1,4 +1,3 @@
-// blockchain.js
 const crypto = require("crypto");
 const fs = require("fs");
 
@@ -6,7 +5,7 @@ class Block {
   constructor(index, timestamp, data, previousHash = "", nonce = 0) {
     this.index = index;
     this.timestamp = timestamp;
-    this.data = data; // Expected keys: platform, poster, post_id, content, post_time, tweetUrl
+    this.data = data; // e.g. { recordId, commitment }
     this.previousHash = previousHash;
     this.nonce = nonce;
     this.hash = this.computeHash();
@@ -34,7 +33,7 @@ class Block {
 }
 
 class Blockchain {
-  constructor(difficulty = 2, chainFilePath = "./blockchain.json") {
+  constructor(difficulty = 2, chainFilePath = "./chain.json") {
     this.difficulty = difficulty;
     this.chainFilePath = chainFilePath;
     this.chain = [];
@@ -42,14 +41,7 @@ class Blockchain {
   }
 
   createGenesisBlock() {
-    const genesisData = {
-      platform: "genesis",
-      poster: "genesis",
-      post_id: "0",
-      content: "Genesis Block",
-      post_time: new Date().toISOString(),
-    };
-    const genesisBlock = new Block(0, Date.now(), genesisData, "0");
+    const genesisBlock = new Block(0, Date.now(), { info: "genesis" }, "0");
     genesisBlock.mineBlock(this.difficulty);
     return genesisBlock;
   }
@@ -57,10 +49,8 @@ class Blockchain {
   loadChain() {
     if (fs.existsSync(this.chainFilePath)) {
       try {
-        const data = fs.readFileSync(this.chainFilePath);
-        this.chain = JSON.parse(data);
-      } catch (err) {
-        console.error("Error loading blockchain from file:", err);
+        this.chain = JSON.parse(fs.readFileSync(this.chainFilePath));
+      } catch {
         this.chain = [this.createGenesisBlock()];
         this.saveChain();
       }
@@ -78,14 +68,9 @@ class Blockchain {
     return this.chain[this.chain.length - 1];
   }
 
-  addBlock(newData) {
-    const previousBlock = this.getLatestBlock();
-    const newBlock = new Block(
-      previousBlock.index + 1,
-      Date.now(),
-      newData,
-      previousBlock.hash
-    );
+  addBlock(data) {
+    const prev = this.getLatestBlock();
+    const newBlock = new Block(prev.index + 1, Date.now(), data, prev.hash);
     newBlock.mineBlock(this.difficulty);
     this.chain.push(newBlock);
     this.saveChain();
