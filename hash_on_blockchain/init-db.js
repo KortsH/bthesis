@@ -40,5 +40,5 @@ db.serialize(() => {
 });
 
 db.close(() => {
-  console.log("✅ Initialized quotes.db with schema and sample data.");
+  console.log("Initialized quotes.db with schema and sample data.");
 });
