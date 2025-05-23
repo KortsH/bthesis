@@ -1,58 +1,65 @@
-
 const fs = require("fs");
 const crypto = require("crypto");
 const path = require("path");
 const { Blockchain } = require("./blockchain");
 
-const oldChainPath = path.resolve(__dirname, "rawChain.json");
-if (!fs.existsSync(oldChainPath)) {
-  console.error(`⚠️  Cannot find ${oldChainPath}`);
-  process.exit(1);
-}
-const oldChain = JSON.parse(fs.readFileSync(oldChainPath, "utf8"));
+const QUOTES_API = "http://localhost:4001/quotes";
+const NEW_CHAIN_PATH = path.resolve(__dirname, "chain.json");
+const PENDING_PATH = path.resolve(__dirname, "pending.json");
 
-const records = oldChain.slice(1).map((block) => {
-  const d = block.data;
-  const recordId = d.post_id;
-  const commitment = crypto
-    .createHash("sha256")
-    .update(JSON.stringify(d))
-    .digest("hex");
-  return { recordId, commitment };
-});
+const DIFFICULTY = 2;
+const MAX_RECORDS = 16;
 
-const newChainFile = path.resolve(__dirname, "chain.json");
-const bc = new Blockchain(
-  2, 
-  newChainFile, 
-  16
-);
-
-bc.chain = [bc.createGenesisBlock()];
-
-for (const rec of records) {
-  const mined = bc.addRecord(rec);
-  if (mined) {
-    console.log(`Mined block #${mined.index} (16 records)`);
+async function migrate() {
+  console.log("Fetching all quotes from API...");
+  const res = await fetch(QUOTES_API);
+  if (!res.ok) {
+    console.error(`Failed to fetch quotes: ${res.status} ${res.statusText}`);
+    process.exit(1);
   }
+  const quotes = await res.json();
+  console.log(`Retrieved ${quotes.length} quotes.`);
+
+  const bc = new Blockchain(DIFFICULTY, NEW_CHAIN_PATH, MAX_RECORDS);
+  bc.chain = [bc.createGenesisBlock()];
+
+  console.log("Building commitment records...");
+  const records = quotes.map((q) => {
+    const data = {
+      platform: q.platform,
+      poster: q.poster,
+      post_id: q.post_id,
+      content: q.content,
+      post_time: q.post_time,
+      tweet_url: q.tweet_url,
+    };
+    const commitment = crypto
+      .createHash("sha256")
+      .update(JSON.stringify(data))
+      .digest("hex");
+    return { recordId: String(q.post_id), commitment };
+  });
+
+  console.log("⛓️  Adding records to blockchain...");
+  for (const rec of records) {
+    const mined = bc.addRecord(rec);
+    if (mined) {
+      console.log(
+        `Mined block #${mined.index} (${mined.records.length} records)`
+      );
+    }
+  }
+
+  console.log(`${bc.pendingRecords.length} records remain pending.`);
+
+  bc.saveChain();
+  bc.savePending();
+  console.log(`Migration complete!
+  New chain written to ${NEW_CHAIN_PATH}
+  Pending buffer written to ${PENDING_PATH} (${bc.pendingRecords.length} records)`);
 }
 
-console.log("pendingRecords", bc.pendingRecords.length);
-bc.savePending();
-
-const originalPersist = bc._persistPending;
-bc._persistPending = () => {};
-
-const last = bc.flushPending();
-if (last) {
-  console.log(
-    `🔃  Flushed final block #${last.index} (${last.records.length} records)`
-  );
-}
-
-bc._persistPending = originalPersist;
-
-bc.saveChain();
-
-bc.saveChain();
-console.log(`Migration complete – new chain written to ${newChainFile}`);
+migrate().catch((err) => {
+  console.error("Migration error:", err);
+  process.exit(1);
+});
