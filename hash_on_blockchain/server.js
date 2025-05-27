@@ -1,7 +1,6 @@
 const express = require("express");
 const sqlite3 = require("sqlite3").verbose();
 const cors = require("cors");
-const crypto = require("crypto");
 const { Blockchain } = require("./blockchain");
 
 const { exec } = require("child_process");
@@ -80,11 +79,9 @@ app.post("/verify", (req, res) => {
   console.log("→ /verify (hashed) called:", req.body);
   const { tweetId, content } = req.body;
 
-  // build exactly what your python script expects
   const input = { tweetId, content };
   const inputStr = JSON.stringify(input);
 
-  // shell out to your Sentence-BERT verifier
   exec(
     `python3 verify_quote.py '${inputStr.replace(/'/g, "\\'")}'`,
     (error, stdout, stderr) => {
@@ -108,7 +105,6 @@ app.post("/verify", (req, res) => {
   );
 });
 
-// And likewise for highlight‐only:
 app.post("/verifyHighlighted", (req, res) => {
   console.log("→ /verifyHighlighted called:", req.body);
   const input = { highlightedText: req.body.highlightedText };
@@ -133,62 +129,6 @@ app.post("/verifyHighlighted", (req, res) => {
       }
     }
   );
-});
-
-
-app.post("/verifyHighlighted", (req, res) => {
-  const { highlightedText } = req.body;
-
-  const sql = `
-    SELECT
-      id   AS recordId,
-      platform,
-      poster,
-      post_id,
-      content,
-      post_time,
-      tweet_url
-    FROM quotes
-    WHERE content LIKE ?
-  `;
-  db.all(sql, [`%${highlightedText}%`], (err, rows) => {
-    if (err) {
-      return res.status(500).json({ verified: false, error: err.message });
-    }
-    if (!rows.length) {
-      return res.json({ verified: false, matches: [] });
-    }
-
-    const results = rows.map((row) => {
-      const fullData = {
-        platform: row.platform,
-        poster: row.poster,
-        post_id: row.post_id,
-        content: row.content,
-        post_time: row.post_time,
-        tweetUrl: row.tweet_url,
-      };
-      const commitment = crypto
-        .createHash("sha256")
-        .update(JSON.stringify(fullData))
-        .digest("hex");
-
-      const found = chain.chain.find(
-        (blk) => blk.data.commitment === commitment
-      );
-      return {
-        recordId: row.recordId,
-        commitment: commitment,
-        blockIndex: found ? found.index : null,
-      };
-    });
-
-    const matches = results.filter((r) => r.blockIndex !== null);
-    res.json({
-      verified: matches.length > 0,
-      matches: matches,
-    });
-  });
 });
 
 app.listen(PORT, () => {
