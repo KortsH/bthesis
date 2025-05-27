@@ -4,19 +4,12 @@ const cors = require("cors");
 const crypto = require("crypto");
 const { Blockchain } = require("./blockchain");
 
+const { exec } = require("child_process");
+
 const app = express();
 const PORT = 4001;
 
-app.use(
-  cors({
-    origin: [
-      "http://localhost:3000",
-      "http://localhost:3001",
-      "https://twitter.com",
-      "https://www.twitter.com",
-    ],
-  })
-);
+app.use(cors()); 
 app.use(express.json());
 
 const db = new sqlite3.Database("./quotes.db", sqlite3.OPEN_READWRITE);
@@ -84,57 +77,64 @@ app.get("/chain", (req, res) => {
 });
 
 app.post("/verify", (req, res) => {
+  console.log("→ /verify (hashed) called:", req.body);
   const { tweetId, content } = req.body;
 
-  const sql = `
-    SELECT
-      id   AS recordId,
-      platform,
-      poster,
-      post_id,
-      content,
-      post_time,
-      tweet_url
-    FROM quotes
-    WHERE post_id = ?
-  `;
+  // build exactly what your python script expects
+  const input = { tweetId, content };
+  const inputStr = JSON.stringify(input);
 
-  db.get(sql, [tweetId], (err, row) => {
-    if (err) {
-      return res.status(500).json({ verified: false, error: err.message });
+  // shell out to your Sentence-BERT verifier
+  exec(
+    `python3 verify_quote.py '${inputStr.replace(/'/g, "\\'")}'`,
+    (error, stdout, stderr) => {
+      if (error) {
+        console.error("Python error:", error);
+        return res.status(500).json({ verified: false, error: error.message });
+      }
+      if (stderr) console.warn("Python stderr:", stderr);
+
+      try {
+        const result = JSON.parse(stdout);
+        console.log("→ Python result:", result);
+        res.json(result);
+      } catch (e) {
+        console.error("Invalid JSON from Python:", stdout);
+        res
+          .status(500)
+          .json({ verified: false, error: "Bad JSON from verifier" });
+      }
     }
-    if (!row) {
-      return res.json({ verified: false, matches: [] });
-    }
-
-    const fullData = {
-      platform: row.platform,
-      poster: row.poster,
-      post_id: row.post_id,
-      content: row.content,
-      post_time: row.post_time,
-      tweetUrl: row.tweet_url,
-    };
-    const commitment = crypto
-      .createHash("sha256")
-      .update(JSON.stringify(fullData))
-      .digest("hex");
-
-    const hits = chain.chain
-      .filter((blk) => blk.data.commitment === commitment)
-      .map((blk) => ({
-        recordId: row.recordId,
-        commitment: commitment,
-        blockIndex: blk.index,
-      }));
-
-    if (hits.length > 0) {
-      res.json({ verified: true, matches: hits });
-    } else {
-      res.json({ verified: false, matches: [] });
-    }
-  });
+  );
 });
+
+// And likewise for highlight‐only:
+app.post("/verifyHighlighted", (req, res) => {
+  console.log("→ /verifyHighlighted called:", req.body);
+  const input = { highlightedText: req.body.highlightedText };
+  const inputStr = JSON.stringify(input);
+
+  exec(
+    `python3 verify_quote.py '${inputStr.replace(/'/g, "\\'")}'`,
+    (error, stdout, stderr) => {
+      if (error) {
+        console.error("Python error:", error);
+        return res.status(500).json({ verified: false, error: error.message });
+      }
+      if (stderr) console.warn("Python stderr:", stderr);
+
+      try {
+        const result = JSON.parse(stdout);
+        res.json(result);
+      } catch {
+        res
+          .status(500)
+          .json({ verified: false, error: "Bad JSON from verifier" });
+      }
+    }
+  );
+});
+
 
 app.post("/verifyHighlighted", (req, res) => {
   const { highlightedText } = req.body;
