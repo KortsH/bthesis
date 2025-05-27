@@ -24,5 +24,8 @@
       "js": ["content.js"],
       "css": ["style.css"]
     }
-  ]
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  }
 }

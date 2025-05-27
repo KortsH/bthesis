@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Social Media Verifier Settings</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      min-width: 200px;
+      padding: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <h3>Select Blockchain</h3>
+  <label><input type="radio" name="mode" value="raw" checked> Raw data storage</label><br>
+  <label><input type="radio" name="mode" value="hashed"> Hashed commits</label><br>
+  <label><input type="radio" name="mode" value="merkle"> Merkle trees</label><br>  
+  <div id="status" style="margin-top:10px; font-size: 0.9em; color: green;"></div>
+
+  <script src="popup.js"></script>
+</body>
+
+</html>
