@@ -72,28 +72,28 @@ if (fs.existsSync(postsFolder)) {
 
 app.post("/verify", (req, res) => {
   const { tweetId, content, poster, tweetUrl } = req.body;
-  // console.log("Received verification request:", {
-  //   tweetId,
-  //   content,
-  //   poster,
-  //   tweetUrl,
-  // });
+  console.log("Received verification request:", {
+    tweetId,
+    content,
+    poster,
+    tweetUrl,
+  });
 
   const input = { tweetId, content, poster, tweetUrl };
   const inputStr = JSON.stringify(input);
 
   exec(`python3 verify_quote.py '${inputStr}'`, (error, stdout, stderr) => {
     if (error) {
-      // console.error(`Error executing python script: ${error}`);
+      console.error(`Error executing python script: ${error}`);
       res.status(500).json({ verified: false, error: error.message });
       return;
     }
     if (stderr) {
-      // console.error(`Python stderr: ${stderr}`);
+      console.error(`Python stderr: ${stderr}`);
     }
     try {
       const result = JSON.parse(stdout);
-      // console.log("Verification result from Python:", result);
+      console.log("Verification result from Python:", result);
       res.json(result);
     } catch (parseErr) {
       res.status(500).json({

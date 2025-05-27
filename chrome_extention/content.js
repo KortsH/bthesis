@@ -59,7 +59,7 @@
     console.log("Found tweet ID:", tweetId);
     const tweetContent = articleElement.innerText;
     console.log("Sending request for tweet ID:", tweetId);
-    fetch("http://localhost:3000/verify", {
+    fetch("http://localhost:3001/verify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tweetId, content: tweetContent }),
@@ -119,7 +119,7 @@
           .trim();
         console.log("Detected keybind. Highlighted text:", highlightedText);
         if (highlightedText) {
-          fetch("http://localhost:3000/verifyHighlighted", {
+          fetch("http://localhost:3001/verifyHighlighted", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ highlightedText }),
