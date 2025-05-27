@@ -7,7 +7,16 @@ const { Blockchain } = require("./blockchain");
 const app = express();
 const PORT = 4001;
 
-app.use(cors({ origin: ["http://localhost:3000", "http://localhost:3001"] }));
+app.use(
+  cors({
+    origin: [
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "https://twitter.com",
+      "https://www.twitter.com",
+    ],
+  })
+);
 app.use(express.json());
 
 const db = new sqlite3.Database("./quotes.db", sqlite3.OPEN_READWRITE);
@@ -72,6 +81,114 @@ app.get("/quotes", (req, res) => {
 
 app.get("/chain", (req, res) => {
   res.json(chain.chain);
+});
+
+app.post("/verify", (req, res) => {
+  const { tweetId, content } = req.body;
+
+  const sql = `
+    SELECT
+      id   AS recordId,
+      platform,
+      poster,
+      post_id,
+      content,
+      post_time,
+      tweet_url
+    FROM quotes
+    WHERE post_id = ?
+  `;
+
+  db.get(sql, [tweetId], (err, row) => {
+    if (err) {
+      return res.status(500).json({ verified: false, error: err.message });
+    }
+    if (!row) {
+      return res.json({ verified: false, matches: [] });
+    }
+
+    const fullData = {
+      platform: row.platform,
+      poster: row.poster,
+      post_id: row.post_id,
+      content: row.content,
+      post_time: row.post_time,
+      tweetUrl: row.tweet_url,
+    };
+    const commitment = crypto
+      .createHash("sha256")
+      .update(JSON.stringify(fullData))
+      .digest("hex");
+
+    const hits = chain.chain
+      .filter((blk) => blk.data.commitment === commitment)
+      .map((blk) => ({
+        recordId: row.recordId,
+        commitment: commitment,
+        blockIndex: blk.index,
+      }));
+
+    if (hits.length > 0) {
+      res.json({ verified: true, matches: hits });
+    } else {
+      res.json({ verified: false, matches: [] });
+    }
+  });
+});
+
+app.post("/verifyHighlighted", (req, res) => {
+  const { highlightedText } = req.body;
+
+  const sql = `
+    SELECT
+      id   AS recordId,
+      platform,
+      poster,
+      post_id,
+      content,
+      post_time,
+      tweet_url
+    FROM quotes
+    WHERE content LIKE ?
+  `;
+  db.all(sql, [`%${highlightedText}%`], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ verified: false, error: err.message });
+    }
+    if (!rows.length) {
+      return res.json({ verified: false, matches: [] });
+    }
+
+    const results = rows.map((row) => {
+      const fullData = {
+        platform: row.platform,
+        poster: row.poster,
+        post_id: row.post_id,
+        content: row.content,
+        post_time: row.post_time,
+        tweetUrl: row.tweet_url,
+      };
+      const commitment = crypto
+        .createHash("sha256")
+        .update(JSON.stringify(fullData))
+        .digest("hex");
+
+      const found = chain.chain.find(
+        (blk) => blk.data.commitment === commitment
+      );
+      return {
+        recordId: row.recordId,
+        commitment: commitment,
+        blockIndex: found ? found.index : null,
+      };
+    });
+
+    const matches = results.filter((r) => r.blockIndex !== null);
+    res.json({
+      verified: matches.length > 0,
+      matches: matches,
+    });
+  });
 });
 
 app.listen(PORT, () => {

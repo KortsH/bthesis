@@ -1,4 +1,3 @@
-// server.js
 const express = require("express");
 const cors = require("cors");
 const fs = require("fs");
@@ -12,7 +11,6 @@ const port = 3001;
 app.use(cors());
 app.use(express.json());
 
-// Load tracked people from file.
 const trackedPeoplePath = path.join(__dirname, "tracked_people.json");
 let trackedPeople = {};
 if (fs.existsSync(trackedPeoplePath)) {
@@ -21,11 +19,9 @@ if (fs.existsSync(trackedPeoplePath)) {
   // console.warn("tracked_people.json not found. Using empty trackedPeople.");
 }
 
-// Initialize blockchain with persistence to blockchain.json.
 const blockchainFilePath = path.join(__dirname, "blockchain.json");
 const blockchain = new Blockchain(2, blockchainFilePath);
 
-// --- On server startup: check posts folder for any new Twitter posts not yet added ---
 const postsFolder = path.join(__dirname, "posts", "twitter");
 if (fs.existsSync(postsFolder)) {
   const files = fs.readdirSync(postsFolder);
@@ -136,7 +132,6 @@ app.post("/verifyHighlighted", (req, res) => {
   });
 });
 
-// Endpoint to view the blockchain
 app.get("/chain", (req, res) => {
   res.json(blockchain);
 });
