@@ -19,10 +19,12 @@
 
   function initVerifier() {
     const platform = detectPlatform();
-    // console.log("Social Media Verifier: Detected platform:", platform);
+    console.log("Social Media Verifier: Detected platform:", platform);
 
     if (platform === "Twitter") {
       processAllTweets();
+      startPollingTweets();
+
       const observer = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
           mutation.addedNodes.forEach((node) => {
@@ -43,7 +45,7 @@
     document.addEventListener(
       "keydown",
       function (e) {
-        if (e.key === "H" && e.altKey) {
+        if (e.key === "h" && e.altKey) {
           const rawHighlightedText = window.getSelection().toString().trim();
           const highlightedText = rawHighlightedText
             .replace(/✅\s*Verified[\s\S]*/g, "")
@@ -72,10 +74,30 @@
     );
   }
 
+  function startPollingTweets() {
+    let delay = 1_000;
+    const maxDelay = 32_000;
+
+    (function tick() {
+      console.log("Polling for new tweets...");
+      processAllTweets();
+      delay = Math.min(delay * 2, maxDelay);
+      setTimeout(tick, delay);
+    })();
+  }
+
   function detectPlatform() {
     const host = window.location.hostname;
     if (host.includes("twitter.com") || host.includes("x.com"))
       return "Twitter";
+    if (host.includes("localhost")) {
+      console.log("Detected LOCALHOST environment");
+      return "Twitter";
+    }
+    if (document.querySelector('article[role="article"] a[href*="/status/"]')) {
+      console.log("Detected DEMO PAGE Twitter article structure");
+      return "Twitter";
+    }
     if (host.includes("bsky.app")) return "BlueSky";
     if (host.includes("truthsocial.com")) return "TruthSocial";
     return "Unknown";
@@ -113,6 +135,7 @@
   }
 
   function processTweet(articleElement) {
+    console.log("Processing tweet:", articleElement);
     if (articleElement.getAttribute("data-verified-checked") === "true") return;
     const tweetId = extractTweetId(articleElement);
     if (!tweetId) return;
@@ -142,7 +165,70 @@
   }
 
   function processAllTweets() {
-    const tweets = document.querySelectorAll("article");
-    tweets.forEach((article) => processTweet(article));
+    document
+      .querySelectorAll('iframe[src*="platform.twitter.com/embed/"]')
+      .forEach((ifr) => {
+        if (ifr.dataset.verifiedChecked) return;
+        const tweetId =
+          ifr.dataset.tweetId || (ifr.src.match(/[?&]id=(\d+)/) || [])[1];
+        if (!tweetId) return;
+        fetch(`http://localhost:${serverPort}/verify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tweetId }),
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.verified && data.matches.length) {
+              const postEl = ifr.closest("blockquote,article,div");
+              postEl &&
+                addVerificationBadge(postEl, "✅ Verified", data.matches);
+            }
+            ifr.dataset.verifiedChecked = "true";
+          })
+          .catch((err) => {
+            console.error("verify error for", tweetId, err);
+            ifr.dataset.verifiedChecked = "true";
+          });
+      });
+
+    document.querySelectorAll("article").forEach((a) => processTweet(a));
   }
+
+   function hookIntoTwitterRendered() {
+    if (!window.twttr || !twttr.events || !twttr.widgets) {
+      return setTimeout(hookIntoTwitterRendered, 500);
+    }
+    twttr.events.bind("rendered", (event) => {
+      const container = event.target;    
+      const id = event.data.id;           
+      if (!container || !id || container.dataset.verifiedChecked) return;
+      container.dataset.verifiedChecked = "true";
+      const text = container.innerText;
+      const firstLine = text.split("\n")[0];
+      const posterMatch = firstLine.match(/^(.+?)\s*@/);
+      const poster = posterMatch ? posterMatch[1].trim() : undefined;
+      const tweetUrl = poster
+        ? `https://twitter.com/${poster}/status/${id}`
+        : undefined;
+      fetch(`http://localhost:${serverPort}/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tweetId: id,
+          content: text,
+          poster,
+          tweetUrl,
+        }),
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.verified && data.matches?.length) {
+            addVerificationBadge(container, "✅ Verified", data.matches);
+          }
+        })
+        .catch(console.error);
+    });
+   }
+  hookIntoTwitterRendered();
 })();

@@ -19,7 +19,8 @@
         "https://twitter.com/*",
         "https://x.com/*",
         "https://bsky.app/*",
-        "https://truthsocial.com/*"
+        "https://truthsocial.com/*",
+        "http://localhost:3000/demo/*"
       ],
       "js": ["content.js"],
       "css": ["style.css"]
