@@ -43,9 +43,6 @@ PLATFORM_FOLDERS = {
 for folder in PLATFORM_FOLDERS.values():
     os.makedirs(folder, exist_ok=True)
 
-# ------------------------------
-# Helper Function: Parse NDJSON
-# ------------------------------
 def parse_ndjson(output: str) -> list:
     posts = []
     for line in output.strip().splitlines():
@@ -57,9 +54,7 @@ def parse_ndjson(output: str) -> list:
                 print("Error decoding line:", line, e)
     return posts
 
-# ------------------------------
 # X (Twitter) Query Functions
-# ------------------------------
 def query_x_posts(username: str) -> dict:
     bearer_token = os.getenv("TWITTER_AUTH_BEARER_TOKEN")
     if not bearer_token:
@@ -85,9 +80,8 @@ def query_x_posts(username: str) -> dict:
         return {}
     return tweets_resp.json()
 
-# ------------------------------
+
 # Blue Sky Query Functions
-# ------------------------------
 def query_bluesky_posts(handle: str) -> dict:
     """
     Query posts from a Blue Sky user.
@@ -115,9 +109,8 @@ def query_bluesky_posts(handle: str) -> dict:
         print("Error querying Blue Sky posts:", e)
         return {}
 
-# ------------------------------
+
 # Truth Social Query Functions
-# ------------------------------
 def query_truthsocial_posts(handle: str) -> dict:
     """
     Query posts from Truth Social for the given handle.
@@ -145,9 +138,7 @@ def query_truthsocial_posts(handle: str) -> dict:
         print("Error executing truthbrush command:", e)
         return {}
 
-# ------------------------------
 # Facebook Query Functions
-# ------------------------------
 def query_facebook_posts(page_id: str) -> dict:
     fb_token = os.getenv("FACEBOOK_ACCESS_TOKEN")
     if not fb_token:
@@ -160,16 +151,13 @@ def query_facebook_posts(page_id: str) -> dict:
         return {}
     return resp.json()
 
-# ------------------------------
 # Threads Query Functions (Placeholder)
-# ------------------------------
 def query_threads_posts(username: str) -> dict:
     print("Threads API is not yet implemented.")
     return {}
 
-# ------------------------------
+
 # Helper: Save Posts to File (in platform-specific folder)
-# ------------------------------
 def save_posts_to_file(platform: str, handle: str, posts: dict):
     timestamp = time.strftime("%Y%m%d-%H%M%S")
     folder = PLATFORM_FOLDERS.get(platform.lower(), BASE_POSTS_DIR)
@@ -181,9 +169,7 @@ def save_posts_to_file(platform: str, handle: str, posts: dict):
     except Exception as e:
         print("Error saving posts to file:", e)
 
-# ------------------------------
 # CLI Menu (Continuous Loop)
-# ------------------------------
 def main():
     while True:
         print("\nSocial Media Query CLI")
