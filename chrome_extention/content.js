@@ -103,22 +103,42 @@
     return "Unknown";
   }
 
-  function addVerificationBadge(postElement, text, linksInfo) {
+  function addVerificationBadge(
+    postElement,
+    text,
+    linksInfo,
+    identifiedPoster
+  ) {
     if (postElement.querySelector(".custom-verification")) return;
-    const badge = document.createElement("span");
-    badge.innerText = text;
+
+    const badge = document.createElement("div");
     badge.className = "custom-verification";
+
+    const textSpan = document.createElement("span");
+    textSpan.className = "custom-verification-text";
+    textSpan.innerText = text;
+    badge.appendChild(textSpan);
+
+    badge.appendChild(document.createElement("br"));
+
+    if (identifiedPoster) {
+      const posterSpan = document.createElement("span");
+      posterSpan.className = "custom-identified-poster";
+      posterSpan.innerText = `Identified Poster: ${identifiedPoster}`;
+      badge.appendChild(posterSpan);
+    }
 
     if (Array.isArray(linksInfo) && linksInfo.length > 0) {
       const list = document.createElement("ul");
+      list.className = "custom-links-list";
       linksInfo.forEach((item) => {
         const li = document.createElement("li");
         const a = document.createElement("a");
         a.href = item.tweetUrl;
         a.target = "_blank";
-        a.innerText = `${item.tweetId} (${(item.similarity * 100).toFixed(
+        a.innerText = `Similarity: (${(item.similarity * 100).toFixed(
           1
-        )}%)`;
+        )}%)\n Post ID (and link to it): ${item.tweetId}`;
         li.appendChild(a);
         list.appendChild(li);
       });
@@ -127,6 +147,7 @@
 
     postElement.appendChild(badge);
   }
+  
 
   function extractTweetId(articleElement) {
     const link = articleElement.querySelector('a[href*="/status/"]');
@@ -154,7 +175,8 @@
           Array.isArray(data.matches) &&
           data.matches.length > 0
         ) {
-          addVerificationBadge(articleElement, "✅ Verified", data.matches);
+          console.log("HERE Verification successful for tweet ID:", tweetId, data);
+          addVerificationBadge(articleElement, "✅ Verified", data.matches, data.identifiedPoster);
         }
         articleElement.setAttribute("data-verified-checked", "true");
       })
@@ -172,10 +194,12 @@
         const tweetId =
           ifr.dataset.tweetId || (ifr.src.match(/[?&]id=(\d+)/) || [])[1];
         if (!tweetId) return;
+
+        const tweetContent = ifr.contentDocument ? ifr.contentDocument.body.innerText : "";
         fetch(`http://localhost:${serverPort}/verify`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tweetId }),
+          body: JSON.stringify({ tweetId, content: tweetContent }),
         })
           .then((r) => r.json())
           .then((data) => {
@@ -195,40 +219,4 @@
     document.querySelectorAll("article").forEach((a) => processTweet(a));
   }
 
-   function hookIntoTwitterRendered() {
-    if (!window.twttr || !twttr.events || !twttr.widgets) {
-      return setTimeout(hookIntoTwitterRendered, 500);
-    }
-    twttr.events.bind("rendered", (event) => {
-      const container = event.target;    
-      const id = event.data.id;           
-      if (!container || !id || container.dataset.verifiedChecked) return;
-      container.dataset.verifiedChecked = "true";
-      const text = container.innerText;
-      const firstLine = text.split("\n")[0];
-      const posterMatch = firstLine.match(/^(.+?)\s*@/);
-      const poster = posterMatch ? posterMatch[1].trim() : undefined;
-      const tweetUrl = poster
-        ? `https://twitter.com/${poster}/status/${id}`
-        : undefined;
-      fetch(`http://localhost:${serverPort}/verify`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tweetId: id,
-          content: text,
-          poster,
-          tweetUrl,
-        }),
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.verified && data.matches?.length) {
-            addVerificationBadge(container, "✅ Verified", data.matches);
-          }
-        })
-        .catch(console.error);
-    });
-   }
-  hookIntoTwitterRendered();
 })();
